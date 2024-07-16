@@ -22,9 +22,11 @@ public class StandardRSAMetricsNew {
 
     // RSA Key Pair Generation
     public static class KeyPair {
-        public BigInteger n, e, d;
+        public BigInteger p,q,n, e, d;
 
-        public KeyPair(BigInteger n, BigInteger e, BigInteger d) {
+        public KeyPair(BigInteger p,BigInteger q, BigInteger n, BigInteger e, BigInteger d) {
+            this.p=p;
+            this.q=q;
             this.n = n;
             this.e = e;
             this.d = d;
@@ -32,13 +34,13 @@ public class StandardRSAMetricsNew {
     }
 
     public static KeyPair generateKeyPair(int bitLength) {
-        BigInteger p = generateLargePrime(bitLength / 2);
-        BigInteger q = generateLargePrime(bitLength / 2);
+        BigInteger p = generateLargePrime(bitLength );
+        BigInteger q = generateLargePrime(bitLength );
         BigInteger n = p.multiply(q);
         BigInteger phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE));
         BigInteger e = BigInteger.valueOf(65537); // Commonly used prime exponent
         BigInteger d = e.modInverse(phi);
-        return new KeyPair(n, e, d);
+        return new KeyPair(p,q,n, e, d);
     }
 
     // RSA Encryption
@@ -52,7 +54,7 @@ public class StandardRSAMetricsNew {
     }
 
     public static void main(String[] args) throws IOException {
-        int bitLength = 4096;
+        int bitLength = 1024;
 
         // Start measuring key generation time
         Instant startKeyGen = Instant.now();
@@ -89,7 +91,9 @@ public class StandardRSAMetricsNew {
         Duration decryptionDuration = Duration.between(startDecryption, endDecryption);
 
         // Write results to file
-        try (PrintWriter writer = new PrintWriter(new FileWriter("rsa_metrics.txt", true))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(bitLength+"_rsa_metrics.txt", true))) {
+            writer.println("p: " + keyPair.p);
+            writer.println("q: " + keyPair.q);
             writer.println("Modulus n: " + keyPair.n);
             writer.println("Public Exponent e: " + keyPair.e);
             writer.println("Private Exponent d: " + keyPair.d);
