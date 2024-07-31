@@ -54,7 +54,7 @@ public class StandardRSAMetricsNew {
     }
 
     public static void main(String[] args) throws IOException {
-        int bitLength = 1024;
+        int bitLength = 4096;
 
         // Start measuring key generation time
         Instant startKeyGen = Instant.now();
@@ -76,7 +76,7 @@ public class StandardRSAMetricsNew {
         double processCpuLoad = osBean.getSystemLoadAverage();
 
         // Example plaintext
-        BigInteger plaintext = new BigInteger("453435262");
+        BigInteger plaintext = new BigInteger("46548100760");
 
         // Start measuring encryption time
         Instant startEncryption = Instant.now();

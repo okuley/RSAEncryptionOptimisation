@@ -1,5 +1,4 @@
 package NovelRSA;
-
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutionException;
@@ -14,7 +13,8 @@ import java.time.Instant;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-public class NovelRSAMetrics {
+
+public class NovelRSAMetricsDowhile {
     private static final SecureRandom random = new SecureRandom();
 
     // Prime generation task class
@@ -32,33 +32,45 @@ public class NovelRSAMetrics {
     }
 
     // Generate large prime using parallel processing
-    public static BigInteger generateLargePrime(int bitLength) {
+    public static BigInteger generateLargePrime(int bitLength) throws ExecutionException, InterruptedException {
         ForkJoinPool pool = ForkJoinPool.commonPool();
         PrimeGeneratorTask task = new PrimeGeneratorTask(bitLength);
         return pool.invoke(task);
     }
 
-    // Modular exponentiation using Exponentiation by Squaring
-    public static BigInteger modExp(BigInteger base, BigInteger exp, BigInteger mod) {
-        BigInteger result = BigInteger.ONE;
-        base = base.mod(mod);
+    // Modular exponentiation task class
+    public static class ModExpTask extends RecursiveTask<BigInteger> {
+        private final BigInteger base, exp, mod;
 
-        while (exp.compareTo(BigInteger.ZERO) > 0) {
-            if (exp.mod(BigInteger.TWO).equals(BigInteger.ONE)) {
-                result = result.multiply(base).mod(mod);
-            }
-            exp = exp.shiftRight(1);
-            base = base.multiply(base).mod(mod);
+        public ModExpTask(BigInteger base, BigInteger exp, BigInteger mod) {
+            this.base = base;
+            this.exp = exp;
+            this.mod = mod;
         }
-        return result;
+
+        @Override
+        protected BigInteger compute() {
+            return base.modPow(exp, mod);
+        }
     }
 
-    // CRT decryption function
+    // CRT decryption function with parallel processing
     public static BigInteger crtDecrypt(BigInteger c, BigInteger p, BigInteger q, BigInteger r, BigInteger d,
-                                        BigInteger dp, BigInteger dq, BigInteger dr, BigInteger pqinv, BigInteger prinv) {
-        BigInteger m1 = modExp(c, dp, p);
-        BigInteger m2 = modExp(c, dq, q);
-        BigInteger m3 = modExp(c, dr, r);
+                                        BigInteger dp, BigInteger dq, BigInteger dr, BigInteger pqinv, BigInteger prinv) throws ExecutionException, InterruptedException {
+        ForkJoinPool forkJoinPool = ForkJoinPool.commonPool();
+
+        ModExpTask taskM1 = new ModExpTask(c, dp, p);
+        ModExpTask taskM2 = new ModExpTask(c, dq, q);
+        ModExpTask taskM3 = new ModExpTask(c, dr, r);
+
+        forkJoinPool.execute(taskM1);
+        forkJoinPool.execute(taskM2);
+        forkJoinPool.execute(taskM3);
+
+        BigInteger m1 = taskM1.get();
+        BigInteger m2 = taskM2.get();
+        BigInteger m3 = taskM3.get();
+
         BigInteger h1 = pqinv.multiply(m1.subtract(m2)).mod(p);
         BigInteger h2 = prinv.multiply(m1.subtract(m3)).mod(p);
         return m2.add(h1.multiply(q)).add(h2.multiply(r));
@@ -76,28 +88,15 @@ public class NovelRSAMetrics {
         PrimeGeneratorTask task2 = new PrimeGeneratorTask(bitLength);
         PrimeGeneratorTask task3 = new PrimeGeneratorTask(bitLength);
 
-        // Submit tasks to the pool
         BigInteger p = forkJoinPool.submit(task1).get();
-        BigInteger q = forkJoinPool.submit(task2).get();
-        BigInteger r = forkJoinPool.submit(task3).get();
+        BigInteger q;
+        BigInteger r;
 
-        // Ensure p != q != r
-        while (p.equals(q)) {
-            q = forkJoinPool.submit(new PrimeGeneratorTask(bitLength)).get();
-        }
-        while (p.equals(r) || q.equals(r)) {
-            r = forkJoinPool.submit(new PrimeGeneratorTask(bitLength)).get();
-        }
-
-
-        //do while
-/*
-
-       do {
-           q = forkJoinPool.submit(new PrimeGeneratorTask(bitLength)).get();
-            r = forkJoinPool.submit(new PrimeGeneratorTask(bitLength)).get();
+        // Ensure p != q != r using a more efficient approach
+        do {
+            q = forkJoinPool.submit(task2).get();
+            r = forkJoinPool.submit(task3).get();
         } while (p.equals(q) || p.equals(r) || q.equals(r));
-*/
 
         BigInteger n = p.multiply(q).multiply(r);
         BigInteger phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE)).multiply(r.subtract(BigInteger.ONE));
@@ -130,7 +129,7 @@ public class NovelRSAMetrics {
 
         // Start measuring encryption time
         Instant startEncryption = Instant.now();
-        BigInteger ciphertext = modExp(plaintext, e, n);
+        BigInteger ciphertext = plaintext.modPow(e, n);
         Instant endEncryption = Instant.now();
         Duration encryptionDuration = Duration.between(startEncryption, endEncryption);
 
@@ -141,7 +140,7 @@ public class NovelRSAMetrics {
         Duration decryptionDuration = Duration.between(startDecryption, endDecryption);
 
         // Write results to file
-        try (PrintWriter writer = new PrintWriter(new FileWriter(bitLength+"_novelrsa_metrics.txt", true))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(bitLength + "_novelrsa_metrics_crt_do.txt", true))) {
             writer.println("Plaintext to encrypt M: " + plaintext);
             writer.println("Prime p: " + p);
             writer.println("Prime q: " + q);
@@ -162,7 +161,24 @@ public class NovelRSAMetrics {
         // Print a message to indicate that results have been written to the file
         System.out.println("Performance metrics written to rsa_metrics.txt");
     }
+
+    // Modular exponentiation using Exponentiation by Squaring
+    public static BigInteger modExp(BigInteger base, BigInteger exp, BigInteger mod) {
+        BigInteger result = BigInteger.ONE;
+        base = base.mod(mod);
+
+        while (exp.compareTo(BigInteger.ZERO) > 0) {
+            if (exp.mod(BigInteger.TWO).equals(BigInteger.ONE)) {
+                result = result.multiply(base).mod(mod);
+            }
+            exp = exp.shiftRight(1);
+            base = base.multiply(base).mod(mod);
+        }
+        return result;
+    }
 }
+
+
 
 
 

@@ -88,7 +88,7 @@ public class ELGAMAL {
         double processCpuLoad = osBean.getSystemLoadAverage();
 
         // Example plaintext
-        BigInteger plaintext = new BigInteger("453435262");
+        BigInteger plaintext = new BigInteger("46548100760");
 
         // Start measuring encryption time
         Instant startEncryption = Instant.now();
@@ -103,7 +103,7 @@ public class ELGAMAL {
         Duration decryptionDuration = Duration.between(startDecryption, endDecryption);
 
         // Write results to file
-        try (PrintWriter writer = new PrintWriter(new FileWriter("elgamal_metrics.txt", true))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(bitLength+"_elgamal_metrics.txt", true))) {
             writer.println("Prime p: " + keyPair.p);
             writer.println("Generator g: " + keyPair.g);
             writer.println("Public Key y: " + keyPair.y);
